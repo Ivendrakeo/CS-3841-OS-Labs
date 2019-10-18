@@ -7,8 +7,8 @@
 int main(int argc, char* argv[]){
 	
 
-
-	//working named code...
+/*
+	//working named code... Ex1
 	matrix* namedMatrixOne = createNamedMatrix(argv[1],"mat1");
 	matrix* namedMatrixTwo = createNamedMatrix(argv[2],"mat2");
 	matrix* resultMatrix = multiplyMatrixNamedMultiprocessing(namedMatrixOne,namedMatrixTwo,"resmat");
@@ -16,9 +16,9 @@ int main(int argc, char* argv[]){
 	deleteNamedMatrix(namedMatrixOne,"mat1");
 	deleteNamedMatrix(namedMatrixTwo,"mat2");
 	deleteNamedMatrix(resultMatrix,"resmat");
-
+*/
 /*
-	//not working anonymous code...
+	//not working anonymous code... Ex2
 	matrix* anonymousMatrixOne = createAnonymousMatrix(argv[1]);
 	matrix* anonymousMatrixTwo = createAnonymousMatrix(argv[2]);
 	matrix* resultMatrixAnon = multiplyMatrixNoMultiprocessing(anonymousMatrixOne, anonymousMatrixTwo);
@@ -28,6 +28,7 @@ int main(int argc, char* argv[]){
 	//deleteAnonymousMatrix(resultMatrixAnon);
 */
 /*
+	//normal matrix code... Ex3
 	matrix* matrixOne = createMatrix(argv[1]);
 	matrix* matrixTwo = createMatrix(argv[2]);
 	matrix* resultMatrixMult = multiplyMatrix(matrixOne, matrixTwo);
@@ -35,7 +36,7 @@ int main(int argc, char* argv[]){
 	deleteMatrix(matrixTwo);
 	deleteMatrix(matrixOne);
 */
-/*
+
 	clock_t start, end;
 
 	//create all of the input matrixes for each calculation type
@@ -87,6 +88,6 @@ int main(int argc, char* argv[]){
 	printf("pipe multiprocessing: %f sec\n",pipeMultiprocessing);
 	printf("mmap multiprocessing: %f sec\n",anonMultiprocessing);
 	printf("named multiprocessing: %f sec\n",namedMultiprocessing);
-*/
+
 
 }

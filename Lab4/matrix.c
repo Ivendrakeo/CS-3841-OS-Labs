@@ -308,12 +308,12 @@ matrix* createNamedMatrix(const char* filename, const char* matrixName){
 		newMatrix->width = columns;
 		//populate the matrix with data from the supplied file
 		for(int i = 0; i < rows; i++){
-			for(int j = 0; j < columns; j++){
-				int value;
-				fscanf(input, "%d", &value);
-				*(newMatrix->data + ((i*columns)+j)) = value;
-			}
-		}
+            for(int j = 0; j < columns; j++){
+                int value;
+                fscanf(input, "%d", &value);
+                *(newMatrix->data + ((i*columns)+j)) = value;
+            }
+        }
 		//close the file and return the resulting matrix
 		fclose(input);
 		return newMatrix;
