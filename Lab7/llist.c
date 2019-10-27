@@ -17,18 +17,16 @@ void llInit(list *myList){
 }
 
 int llSize(list *myList){
-	//pthread_mutex_lock(myList->mutex);
+	pthread_mutex_lock(myList->mutex);
 	return myList->size;
-	//pthread_mutex_unlock(myList->mutex);
+	pthread_mutex_unlock(myList->mutex);
 }
 
-int llPushFront(list *myList,char *toStore){
-	if(toStore != NULL){
-		char *listString = malloc (strlen(toStore)+1);
-		strcpy(listString, toStore);
+int llPushFront(list *myList, int value){
+	if(value != NULL){
 		node* newNode = malloc (sizeof (node));
 		newNode->prev = NULL;
-		newNode->string = listString;
+		newNode->val = value;
 		pthread_mutex_lock(myList->mutex);
 		newNode->next = myList->head;
 		if(myList->head != NULL){
@@ -58,22 +56,20 @@ int llPopFront(list *myList){
 			myList->head = NULL;
 			myList->tail = NULL;
 		}
-		free(oldHead->string);
+		int ret = oldHead->val;
 		free(oldHead);
 		(myList->size)--;
 		pthread_mutex_unlock(myList->mutex);
-		return 1;
+		return ret;
 	} else {
-		return 0;
+		return -1;
 	}
 }
 
-int llPushBack(list *myList, char *toStore){
-	if(toStore != NULL){
-		char *listString = malloc (strlen(toStore)+1);
-		strcpy(listString, toStore);
+int llPushBack(list *myList, int value){
+	if(value != NULL){
 		node* newNode = malloc (sizeof (node));
-		newNode->string = listString;
+		newNode->val = value;
 		newNode->next = NULL;
 		pthread_mutex_lock(myList->mutex);
 		newNode->prev = myList->tail;
@@ -104,13 +100,13 @@ int llPopBack(list *myList){
 			myList->tail = NULL;
 			myList->head = NULL;
 		}
-		free(oldTail->string);
+		int ret = oldTail->val;
 		free(oldTail);
 		(myList->size)--;
 		pthread_mutex_unlock(myList->mutex);
-		return 1;
+		return ret;
 	} else {
-		return 0;
+		return -1;
 	}
 }
 
@@ -124,15 +120,13 @@ void llClear(list *myList){
 	}
 }
 
-int llInsertAfter(list* myList, node *insNode, char *toStore){
-	if((insNode == NULL) || (toStore == NULL)){
+int llInsertAfter(list* myList, node *insNode, int value){
+	if((insNode == NULL) || (value == NULL)){
 		return 0;
 	} else {
-		char *listString = malloc (strlen(toStore)+1);
-		strcpy(listString, toStore);
 		node* newNode = malloc (sizeof (node));
 		newNode->prev = insNode;
-		newNode->string = listString;
+		newNode->val = value;
 		pthread_mutex_lock(myList->mutex);
 		if(insNode == myList->tail){
 			myList->tail->next = newNode;
@@ -140,6 +134,7 @@ int llInsertAfter(list* myList, node *insNode, char *toStore){
 			myList->tail = newNode;
 		} else {
 			newNode->next = insNode->next;
+			insNode->next->prev = newNode;
 			insNode->next = newNode;
 		}
 		(myList->size)++;
@@ -149,15 +144,13 @@ int llInsertAfter(list* myList, node *insNode, char *toStore){
 	}
 }
 
-int llInsertBefore(list* myList, node *insNode, char *toStore){
-	if((insNode == NULL) || (toStore == NULL)){
+int llInsertBefore(list* myList, node *insNode, int value){
+	if((insNode == NULL) || (value == NULL)){
 		return 0;
 	} else {
-		char *listString = malloc (strlen(toStore)+1);
-		strcpy(listString, toStore);
 		node* newNode = malloc (sizeof (node));
 		newNode->next = insNode;
-		newNode->string = listString;
+		newNode->val = value;
 		pthread_mutex_lock(myList->mutex);
 		if(insNode == myList->head){
 			myList->head->prev = newNode;
@@ -165,6 +158,7 @@ int llInsertBefore(list* myList, node *insNode, char *toStore){
 			myList->head = newNode;
 		} else {
 			newNode->prev = insNode->prev;
+			insNode->prev->next = newNode;
 			insNode->prev = newNode;
 		}
 		(myList->size)++;
@@ -192,7 +186,6 @@ int llRemove(list* myList, node *rmvNode){
 					workingNode->prev->next = workingNode->next;
 					workingNode->next->prev = workingNode->prev;
 				}
-				free(workingNode->string);
 				free(workingNode);
 				break;
 			} else {
@@ -213,7 +206,7 @@ void printList(list* myList){
 	pthread_mutex_lock(myList->mutex);
 	node* workingNode = myList->head;
 	while(workingNode != NULL){
-		printf("node: %d val: %s\n",size,workingNode->string);
+		printf("node: %d val: %d\n",size,workingNode->val);
 		size++;
 		workingNode = workingNode->next;
 	}
@@ -223,7 +216,7 @@ void printList(list* myList){
 void printHeadAndTail(list* myList){
 	pthread_mutex_lock(myList->mutex);
 	if(!((myList->head == NULL) || (myList->tail == NULL)))
-		printf("head: %s, tail: %s\n",myList->head->string,myList->tail->string);
+		printf("head: %d, tail: %d\n",myList->head->val,myList->tail->val);
 	pthread_mutex_unlock(myList->mutex);
 }
 

@@ -7,6 +7,10 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include <sys/mman.h>
+#include <sys/stat.h>        /* For mode constants */
+#include <fcntl.h>           /* For O_* constants */
+
 /*
  * This method is what runs the child process called from fork.
  * The child process will calculate the results of a multiplication matrix for a designated cell.
@@ -159,5 +163,215 @@ void printMatrix(matrix* matrix){
 			printf("%d ", *(matrix->data + ((i*matrix->width)+j)));
 		}
 		printf("\n");
+	}
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////// Anonymous Matrix Code ////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////
+
+matrix* createAnonymousMatrix(const char* filename){
+	//mmap a new matrix
+	matrix* newMatrix = mmap(NULL, sizeof(matrix), PROT_READ | PROT_WRITE, 
+                    MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+	int rows, columns;
+	FILE* input = fopen(filename, "r");
+	//read the file and malloc enough space for the matrix data
+	if(input != NULL){
+		fscanf(input, "%d", &rows);
+		fscanf(input, "%d", &columns);
+		newMatrix->data = mmap(NULL, (sizeof(int)*rows*columns), PROT_READ | PROT_WRITE, 
+                    MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+		newMatrix->length = rows;
+		newMatrix->width = columns;
+		//populate the matrix with data from the supplied file
+		for(int i = 0; i < rows; i++){
+			for(int j = 0; j < columns; j++){
+				int value;
+				fscanf(input, "%d", &value);
+				*(newMatrix->data + ((i*columns)+j)) = value;
+			}
+		}
+		//close the file and return the resulting matrix
+		fclose(input);
+		return newMatrix;
+	}
+	return NULL;
+}
+
+void deleteAnonymousMatrix(matrix* matrix){
+	munmap((void*)matrix->data,sizeof(int)*matrix->width*matrix->length);
+	munmap((void*)matrix,sizeof(matrix));
+}
+
+/*
+ * This method is what runs the child process called from fork.
+ * The child process will calculate the results of a multiplication matrix for a designated cell.
+ * The anonymouschildprocess will non need a pipe and will instead used shared memeory segments for 
+ * each of the input matrixes and the result matrix
+ *
+ * first : the logical first matrix of the opperand.
+ * second : the logical second matrix of the opperand.
+ * cell : which reseult cell the process is supposed to calculate. The cell is indexed left to right.
+ * result : pointer to the location of the result matrix.
+ *
+ * return : void, but the specified cell will be filled in the anonymous shared memory result matrix data cell.
+ */
+static void anonymouschildprocess(matrix* first, matrix* second, int cell, matrix* result){
+	int width = second->width;
+	int cell_x_pos = cell % width;
+	int cell_y_pos = ((cell - cell_x_pos) / width);
+	int sum = 0;
+	for(int i = 0; i < first->width; i++){
+		//calculate the cell multiplication
+		sum = sum + (*(first->data + first->width*(cell_y_pos) + i)) * (*(second->data + second->width*i + (cell_x_pos)));
+	}
+	*(result->data + cell) = sum;
+}
+
+matrix* multiplyMatrixAnonymousMultiprocessing(matrix* first, matrix* second){
+	//ensure that for m x n and q x p, that n==q
+	if(first->width == second->length){
+		//mmap and setup resulting matrix
+		matrix* resultMatrix = mmap(NULL, sizeof(matrix), PROT_READ | PROT_WRITE, 
+                    MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+		resultMatrix->length = first->length;
+		resultMatrix->width = second->width;
+		int size = resultMatrix->width * resultMatrix->length;
+		resultMatrix->data = mmap(NULL, (sizeof(int)*size), PROT_READ | PROT_WRITE, 
+                    MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+		//malloc pids and start iterating through each cell
+		pid_t* pids = malloc (sizeof(pid_t)*size);
+		for(int i = 0; i < size; i++){
+			//fork and run child processes
+			*(pids+i) = fork();
+			if( (*(pids+i)) < 0 ){
+				printf("Fork failed, terminating\n");
+				exit(EXIT_FAILURE);
+			} else if( (*(pids+i)) == 0){
+				anonymouschildprocess(first, second, i,resultMatrix);
+				free(resultMatrix->data);
+				free(first->data);
+				free(second->data);
+				free(resultMatrix);
+				free(first);
+				free(second);
+				free(pids);
+				exit(0);
+			}
+		}
+		//back to parent process
+		for(int i = 0; i < size; i++){
+			wait(0);
+		}
+		free(pids);
+		return resultMatrix;
+	} else {
+		return NULL;
+	}
+}
+
+
+///////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////// Named Matrix Code ////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////
+
+matrix* createNamedMatrix(const char* filename, const char* matrixName){
+
+	/* code outline for shm_open obtained from: https://pubs.opengroup.org/onlinepubs/009695399/functions/shm_open.html */
+
+	/* Create shared memory object and set its size */
+	int fd = shm_open(matrixName, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
+	if (fd == -1){
+		printf("named memory object could not be created!\n");
+		return NULL;
+	}
+	if (ftruncate(fd, sizeof(matrix)) == -1){
+		printf("Named memory object could not be truncated!\n");
+		return NULL;
+	}
+	/* Map shared memory object */
+	matrix* newMatrix= mmap(NULL, sizeof(matrix),
+		PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+	if (newMatrix == MAP_FAILED){
+		printf("mapping of named memory object to structure matrix failed!\n");
+	}
+	int rows, columns;
+	FILE* input = fopen(filename, "r");
+	//read the file and malloc enough space for the matrix data
+	if(input != NULL){
+		fscanf(input, "%d", &rows);
+		fscanf(input, "%d", &columns);
+		newMatrix->data = mmap(NULL, (sizeof(int)*rows*columns), PROT_READ | PROT_WRITE, 
+                    MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+		newMatrix->length = rows;
+		newMatrix->width = columns;
+		//populate the matrix with data from the supplied file
+		for(int i = 0; i < rows; i++){
+			for(int j = 0; j < columns; j++){
+				int value;
+				fscanf(input, "%d", &value);
+				*(newMatrix->data + ((i*columns)+j)) = value;
+			}
+		}
+		//close the file and return the resulting matrix
+		fclose(input);
+		return newMatrix;
+	}
+	return NULL;
+}
+
+void deleteNamedMatrix(matrix* matrix, const char* matrixName){
+	munmap((void*)matrix->data,sizeof(int)*matrix->width*matrix->length);
+	munmap((void*)matrix,sizeof(matrix));
+	shm_unlink(matrixName);
+}
+
+matrix* multiplyMatrixNamedMultiprocessing(matrix* first, matrix* second, const char* resultName){
+	//ensure that for m x n and q x p, that n==q
+	if(first->width == second->length){
+		/* Create shared memory object and set its size */
+		int fd = shm_open(resultName, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
+		if (fd == -1){
+			printf("named memory object could not be created!\n");
+			return NULL;
+		}
+		if (ftruncate(fd, sizeof(matrix)) == -1){
+			printf("Named memory object could not be truncated!\n");
+			return NULL;
+		}
+		/* Map shared memory object */
+		matrix* resultMatrix= mmap(NULL, sizeof(matrix),
+			PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+		if (resultMatrix == MAP_FAILED){
+			printf("mapping of named memory object to structure matrix failed!\n");
+		}
+		resultMatrix->length = first->length;
+		resultMatrix->width = second->width;
+		int size = resultMatrix->width * resultMatrix->length;
+		resultMatrix->data = mmap(NULL, (sizeof(int)*size), PROT_READ | PROT_WRITE, 
+                    MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+		//malloc pids and start iterating through each cell
+		pid_t* pids = malloc (sizeof(pid_t)*size);
+		for(int i = 0; i < size; i++){
+			//fork and run child processes
+			*(pids+i) = fork();
+			if( (*(pids+i)) < 0 ){
+				printf("Fork failed, terminating\n");
+				exit(EXIT_FAILURE);
+			} else if( (*(pids+i)) == 0){
+				anonymouschildprocess(first, second, i,resultMatrix);
+				free(pids);
+				exit(0);
+			}
+		}
+		//back to parent process
+		for(int i = 0; i < size; i++){
+			wait(0);
+		}
+		free(pids);
+		return resultMatrix;
+	} else {
+		return NULL;
 	}
 }

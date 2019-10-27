@@ -1,7 +1,7 @@
 CC=gcc
 CFLAGS=-c -Wall
-LDFLAGS=
-SOURCES=llist.c llTester.c
+LDFLAGS=-lrt
+SOURCES=matrix.c matrixTest.c
 OBJECTS=$(SOURCES:.c=.o)
 EXECUTABLE=test
 

@@ -1,3 +1,58 @@
+/*
+ * Introduction:
+ * In this lab we simulated the operations of a burger place. threads were created for
+ * each cook and customer where cooks placed burgers and fries on the warming rack and
+ * customers take burgers and fries off the warming rack. Once all the cooks are done
+ * they go home and signal to the customers the day is over. Finally, the statistics 
+ * for the day will be printed at the end of the day.
+ * 
+ * Design:
+ * For this lab I think the key was to break it into parts that were manageable such 
+ * that the entire lab seemed hard but in smaller pieces it wasn't as bad. I then started
+ * with updating my list the be "thread safe". From there, I created stubs for my thread
+ * routines and layed out my main method for thread initalization, creation and join.
+ * I created the thread routines and ensured they were working and returned. From there
+ * I added support for statistic calculations and finished wrapping up the lab.
+ * 
+ * Build Instructions:
+ * first $make then $./test workday.txt (and/or instead of workday.txt whichever
+ * contains information for setting up the burger place.)
+ * 
+ * Analysis:
+ *  - Is your implementation fair? 
+ * 		My implementation is close to being "fair" assuming mutex'es are strong. When
+ * 		Customers are done and need to get back "in line" if the mutex is strong will 
+ * 		wait for all the customers in from before being unblocked. And the way I have it
+ * 		implemented is by serving only one customer at a time.
+ * 	-what is "fair"?
+ * 		fairness refers to how often each thread is being allowed to run in it's critical
+ * 		section.
+ * 	-  In this implementation, when a customer arrives at the front of the line, if 
+ * 	   there is not enough burgers and fries available, they hold up the entire line 
+ * 	   and wait until their food is done.  What if instead, when a customer reached 
+ * 	   the front of the line if not enough food was ready, they skip their ordering 
+ * 	   opportunity and immediately return to the end of the line without ordering?  
+ * 	   Given your definition of fair, is this behavior fair?  Explain why or why not?
+ *     Yes. The customer holds up the entire line blocking until their order is filled.
+ * 	   If their order could not be filled and it would be available to the next customer
+ * 	   I would suggest that this is not fair because depending on how fast the burgers and
+ * 	   fries become available customers with smaller orders could get back in line and get
+ * 	   their order filled again before ever letting the first customers order get filled.
+ * 	- How could orders be prepared instead?
+ * 		orders / customers could be added to a list queue and there would be an observing
+ * 		thread which monitors the queue and when enough burgers / fires are on the list 
+ * 		for the next order to be filled, it gets popped and filled.
+ * 	- How could we modify for warmer capacity limits?
+ * 		Have cooks / friers check the warmer before cooking and if capacity was reached
+ * 		then wait until the they have been used.
+ * 	- Conclustion:
+ * 		The most challenging part of this lab for me was debugging a memory leak that I never
+ * 		found... Other then that, I spent a fair amount of time ensuring my mutex'es were 
+ *		being properly locked and unlocked when I wanted. I liked the concept for the lab 
+ * 		because the thread routines were actually not that complicated and I wouldn't know
+ * 		where to even begin.
+ */
+
 #include <stdlib.h>
 #include <stdio.h>
 #include "llist.h"
@@ -7,6 +62,7 @@
 
 // Top level mutex for managing interactions between cooks and customers
 static pthread_mutex_t listMutex;
+static pthread_mutex_t orderMutex;
 
 // Flag to signal to the customers that the day is over after all the cooks have finished.
 static int dayOverFlag;
@@ -62,6 +118,7 @@ int main(int argc, char* argv[]){
 	llInit(&warmingBurgers);
 	llInit(&warmingFries);
 	pthread_mutex_init(&listMutex,NULL);
+	pthread_mutex_init(&orderMutex,NULL);
 	dayOverFlag = 0;
 
 	// create and fill burger cooks, fryers, and customer structures with data from file
@@ -142,6 +199,7 @@ static void* customerThread(void* customer){
 	Customer customer_n = *((Customer *) customer);
 	while(1){
 		int flag = 0;
+		pthread_mutex_lock(&orderMutex);
 		for(int i = 0; i < customer_n.burgers; ++i){
 			while(!flag){
 				pthread_mutex_lock(&listMutex);
@@ -160,6 +218,7 @@ static void* customerThread(void* customer){
 			}
 			flag = 0;
 		}
+		pthread_mutex_unlock(&orderMutex);
 		((Customer *) customer)->ordersFilled = ((Customer *) customer)->ordersFilled + 1;
 		usleep(customer_n.duration);
 	}
@@ -167,6 +226,8 @@ static void* customerThread(void* customer){
 }
 
 static void checkToExit(){
-	if(dayOverFlag == 1)
+	if(dayOverFlag == 1){
+		pthread_mutex_unlock(&orderMutex);
 		pthread_exit(0);
+	}
 }
