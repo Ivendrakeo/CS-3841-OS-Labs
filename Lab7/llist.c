@@ -23,7 +23,7 @@ int llSize(list *myList){
 }
 
 int llPushFront(list *myList, int value){
-	if(value != NULL){
+	//if(value != NULL){
 		node* newNode = malloc (sizeof (node));
 		newNode->prev = NULL;
 		newNode->val = value;
@@ -40,9 +40,9 @@ int llPushFront(list *myList, int value){
 		updateMaxSize(myList);
 		pthread_mutex_unlock(myList->mutex);
 		return 1;
-	} else {
-		return 0;
-	}
+	//} else {
+	//	return 0;
+	//}
 }
 
 int llPopFront(list *myList){
@@ -67,7 +67,7 @@ int llPopFront(list *myList){
 }
 
 int llPushBack(list *myList, int value){
-	if(value != NULL){
+	//if(value != NULL){
 		node* newNode = malloc (sizeof (node));
 		newNode->val = value;
 		newNode->next = NULL;
@@ -84,9 +84,9 @@ int llPushBack(list *myList, int value){
 		updateMaxSize(myList);
 		pthread_mutex_unlock(myList->mutex);
 		return 1;
-	} else {
-		return 0;
-	}
+	//} else {
+	//	return 0;
+	//}
 }
 
 int llPopBack(list *myList){

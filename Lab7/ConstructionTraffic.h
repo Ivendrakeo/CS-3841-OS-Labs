@@ -1,5 +1,6 @@
 #ifndef CONTRA_H
 #define CONTRA_H
+#include <pthread.h>
 
 typedef struct Flagger{
     int flow_time;
@@ -23,6 +24,11 @@ typedef struct CarArray{
     Car* cars;
     int num_cars;
 } CarArray;
+
+typedef struct Signal {
+    pthread_mutex_t m;
+    pthread_cond_t cv;
+} Signal;
 
 CarArray* initTrafficCircle(const char* filename, Flagger* flagger);
 

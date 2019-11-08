@@ -25,8 +25,8 @@ CarArray* initTrafficCircle(const char* filename, Flagger* flagger){
         for(int i = 0; i < car_array->num_cars; ++i){
             fscanf(input, "%d", &((car_array->cars + i)->num_crossings));
             fscanf(input, "%d", &((car_array->cars + i)->sleep_time));
-            (car_array->cars + i)->num_crossings = 0;
             (car_array->cars + i)->car_number = i;
+            (car_array->cars + i)->drive_time = 0;
             if(i < west_cars){
                 (car_array->cars + i)->initial_side = 0;
             } else {
